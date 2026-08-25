@@ -25,7 +25,7 @@ Everything in this library was built to run real production cron jobs on a base 
 ## Quick start
 
 ```bash
-pip install llm-preflight        # stdlib-only core; zero dependencies
+pip install local-llm-preflight   # stdlib-only core; zero dependencies
 ```
 
 ```python

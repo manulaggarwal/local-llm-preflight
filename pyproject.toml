@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "llm-preflight"
+name = "local-llm-preflight"
 version = "0.1.1"
 description = "Fail-safe client discipline for local LLMs on memory-constrained machines: preflight memory checks, starvation-aware retries, thinking-mode-off, token budgets."
 readme = "README.md"
@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Manul Aggarwal" }]
 keywords = [
-    "llm", "local-llm", "ollama", "lmstudio", "llama-cpp", "omlx",
+    "llm", "local-llm", "preflight", "ollama", "lmstudio", "llama-cpp", "omlx",
     "memory-pressure", "cron", "unattended", "fail-safe", "apple-silicon",
 ]
 classifiers = [

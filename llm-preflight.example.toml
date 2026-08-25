@@ -1,4 +1,5 @@
 # llm-preflight.toml — copy, edit, place next to your script or in ~/.config/
+# (package: local-llm-preflight on PyPI; import name stays llm_preflight)
 
 [server]
 base_url = "http://127.0.0.1:8000/v1"   # Ollama/llama.cpp/FreeToken/vLLM default; omlx: set explicitly

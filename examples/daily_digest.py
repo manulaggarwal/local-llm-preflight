@@ -10,6 +10,7 @@ Reads LLM_PREFLIGHT_TOML if set, else ./llm-preflight.toml, else defaults.
 """
 
 import json
+import os
 import sys
 
 from llm_preflight import ClientConfig, MemoryPressureError, PreflightClient
@@ -34,7 +35,9 @@ def main():
     if not items:
         return  # silent when nothing to do — cron etiquette
 
-    client = PreflightClient(load_config())
+    # LLM_PREFLIGHT_TOML env var -> explicit path; else auto-discover
+    cfg_path = os.environ.get("LLM_PREFLIGHT_TOML")  # None -> search defaults
+    client = PreflightClient(load_config(cfg_path))
 
     feed = "\n".join(f"{i+1}. {t}" for i, t in enumerate(items))
     system = (

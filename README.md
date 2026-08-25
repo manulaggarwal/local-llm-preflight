@@ -107,7 +107,7 @@ Honest limits (see [docs/MEASURED.md](docs/MEASURED.md) for the full accounting)
 
 ```bash
 git clone https://github.com/manulaggarwal/local-llm-preflight
-cd llm-preflight
+cd local-llm-preflight
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m pytest tests/ -q           # unit suite (no server needed)
 .venv/bin/python tests/integration_live.py    # against your running server

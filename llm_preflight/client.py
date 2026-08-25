@@ -99,7 +99,7 @@ class PreflightClient:
     """One configured connection to a local server.
 
     Usage:
-        client = PreflightClient(ClientConfig(model="Ornith-1.5-9B-MLX-4bit"))
+        client = PreflightClient(ClientConfig(model="your-served-model-id"))
         try:
             text, usage = client.chat(system="...", user="...")
         except MemoryPressureError:

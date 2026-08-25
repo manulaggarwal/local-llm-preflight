@@ -20,7 +20,8 @@ ClientConfig):
     [memory]
     min_system_mb = 2500
     min_vram_mb = 1500
-    cold_system_mb = 7000        # null disables the cold-start extra gate
+    cold_system_mb = 7000        # omit to keep default; disable only in code:
+                                # ClientConfig(cold_system_mb=None) — TOML has no null
 
     [behavior]
     thinking_off = true

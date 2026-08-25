@@ -33,3 +33,7 @@ jobs:
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # A release re-publish or manual re-dispatch of an already-live
+          # version must not fail the run — skip files that already exist.
+          skip-existing: true

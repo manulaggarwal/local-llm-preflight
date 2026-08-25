@@ -2,7 +2,7 @@
 # (package: local-llm-preflight on PyPI; import name stays llm_preflight)
 
 [server]
-base_url = "http://127.0.0.1:8000/v1"   # Ollama/llama.cpp/FreeToken/vLLM default; omlx: set explicitly
+base_url = "http://127.0.0.1:8000/v1"   # vLLM default; Ollama=11434, llama.cpp=8080 — set YOURS explicitly
 model = "your-served-model-id"          # exact id from your server's /v1/models
 
 [budgets]

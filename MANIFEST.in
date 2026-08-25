@@ -1,3 +1,4 @@
 include llm-preflight.example.toml
 include CHANGELOG.md
 include docs/MEASURED.md
+recursive-include tests *.py

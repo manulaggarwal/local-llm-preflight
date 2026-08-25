@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.2 — 2026-08-25
+
+Published to PyPI as **local-llm-preflight** (the name `llm-preflight` is
+owned by an unrelated project; import name stays `llm_preflight`). GitHub
+repository renamed to match.
+
+**Fixed**
+- `client.py`: removed a nonexistent `PreflightConfig` from `__all__`
+  (`from llm_preflight.client import *` raised AttributeError).
+- README: issue quote now verbatim; hand-build note (`rm -rf build/`)
+  added; clone instructions corrected for the renamed repo.
+- Example TOML / docs: port guidance corrected — vLLM defaults to 8000,
+  Ollama to 11434, llama.cpp to 8080. Set yours explicitly.
+
+**Changed**
+- Publishing is GitHub-OIDC only (zero tokens); the workflow now verifies
+  the tag matches `pyproject.toml` before uploading, and skips files that
+  already exist (idempotent re-releases).
+- `MANIFEST.in`: tests included explicitly (was accidental via a legacy
+  setuptools pattern that dropped `integration_live.py`).
+
 ## 0.1.1 — 2026-08-25
 
 Pre-publication audit release (full-repo security/privacy/quality review).
@@ -15,9 +36,9 @@ Pre-publication audit release (full-repo security/privacy/quality review).
 - `probe.py`: stale usage string replaced with the installed-command form.
 
 **Changed (tool-agnosticism)**
-- Default `base_url` port standardized to `8000` (Ollama/llama.cpp/
-  FreeToken/vLLM convention). The previous default encoded one author's
-  personal port.
+- Default `base_url` port changed to `8000` (vLLM's default; a common
+  denominator — Ollama defaults to 11434, llama.cpp to 8080). The previous
+  default encoded one author's personal port.
 - Docs and examples use a neutral `your-served-model-id` placeholder;
   the real measured model names appear only in `docs/MEASURED.md`,
   explicitly labeled as the measurement rig.

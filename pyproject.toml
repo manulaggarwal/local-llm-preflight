@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "local-llm-preflight"
-version = "0.1.1"
+version = "0.1.2"
 description = "Fail-safe client discipline for local LLMs on memory-constrained machines: preflight memory checks, starvation-aware retries, thinking-mode-off, token budgets."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -34,8 +34,7 @@ import urllib.request
 from .memory import check as memory_check
 
 __all__ = [
-    "PreflightConfig",
-    "PreflightClient",
+        "PreflightClient",
     "MemoryPressureError",
     "LocalModelUnavailable",
     "ClientConfig",

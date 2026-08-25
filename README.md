@@ -8,7 +8,7 @@ Small local models fail *unattended* and *long-session* work in predictable, pre
 
 ## Why this exists
 
-The pain is real and documented in the wild — e.g. [openclaw#65551](https://github.com/openclaw/openclaw/issues/65551): *"Local MLX/LM Studio models get terminated on RAM pressure + no graceful handling"* in cron jobs. Local LLM reliability isn't a model problem; it's an **operational** problem, and nobody ships the operational layer.
+The pain is real and documented in the wild — e.g. [openclaw#65551](https://github.com/openclaw/openclaw/issues/65551): *"Local MLX/LM Studio models get \"terminated\" on RAM pressure + no per-model timeout for cron jobs"* in cron jobs. Local LLM reliability isn't a model problem; it's an **operational** problem, and nobody ships the operational layer.
 
 Everything in this library was built to run real production cron jobs on a base M4 Mac Mini (24 GB), then generalized. The measured numbers behind every default are in [docs/MEASURED.md](docs/MEASURED.md).
 
@@ -114,6 +114,8 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 ```
 
 The unit suite monkeypatches platform memory readers — it passes identically on macOS, Linux, and Windows CI without depending on the host's RAM state.
+
+Note for hand-building: `rm -rf build/` before `python -m build` — setuptools reuses a stale `build/lib/` cache and can silently ship outdated modules.
 
 ## License
 

@@ -1,7 +1,7 @@
 # MEASURED.md — every default in this library, and the data behind it
 
 This library's defaults are not vibes. They come from running real cron jobs
-(Shopify store briefings, RSS digests, health checks) on a base M4 Mac Mini
+(e-commerce store briefings, RSS digests, health checks) on a base M4 Mac Mini
 (24 GB unified, 120 GB/s bandwidth) against omlx serving Ornith-1.5-9B-MLX-4bit,
 plus a claude-consulted architecture review. Reproduce, then adjust.
 

@@ -32,8 +32,8 @@ pip install llm-preflight        # stdlib-only core; zero dependencies
 from llm_preflight import PreflightClient, ClientConfig, MemoryPressureError
 
 client = PreflightClient(ClientConfig(
-    base_url="http://127.0.0.1:8010/v1",
-    model="Qwen3.6-35B-A3B",
+    base_url="http://127.0.0.1:8000/v1",
+    model="your-served-model-id",  # from: curl $BASE/v1/models
 ))
 
 try:
@@ -56,7 +56,7 @@ client = PreflightClient(load_config())  # reads ./llm-preflight.toml
 # llm-preflight.toml
 [server]
 base_url = "http://127.0.0.1:8000/v1"
-model = "Qwen3.6-35B-A3B"
+model = "your-served-model-id"   # exact id from your server's /v1/models
 
 [memory]
 min_system_mb = 2500

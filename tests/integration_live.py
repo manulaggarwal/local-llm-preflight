@@ -18,7 +18,7 @@ from llm_preflight import (
     PreflightClient,
 )
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8010/v1"
+BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8000/v1"
 
 passed = failed = 0
 

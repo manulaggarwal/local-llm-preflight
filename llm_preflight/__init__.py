@@ -15,8 +15,8 @@ Quick start:
     from llm_preflight import PreflightClient, ClientConfig, MemoryPressureError
 
     client = PreflightClient(ClientConfig(
-        base_url="http://127.0.0.1:8010/v1",
-        model="Ornith-1.5-9B-MLX-4bit",
+        base_url="http://127.0.0.1:8000/v1",
+        model="your-served-model-id",
     ))
     try:
         text, usage = client.chat(

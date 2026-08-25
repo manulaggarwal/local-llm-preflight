@@ -9,7 +9,7 @@ Answers the three questions the design depends on, empirically:
   2. Does it honor chat_template_kwargs.enable_thinking? (thinking-off)
   3. What max context does it actually enforce vs advertise?
 
-Usage:  python server-capability-probe.py [base_url] [model]
+Usage:  python -m llm_preflight.probe [base_url] [model]   (or: llm-preflight-probe [base_url] [model])
 Default: http://127.0.0.1:8000/v1  (FreeToken default port)
 """
 import json
@@ -41,7 +41,7 @@ def main():
     import sys as _sys
     if any(a in _sys.argv for a in ("--help", "-h")):
         print("Usage: llm-preflight-probe [BASE_URL] [MODEL]")
-        print("Default base: http://127.0.0.1:8010/v1")
+        print("Default base: http://127.0.0.1:8000/v1")
         print("Probes an OpenAI-compatible local server for usage/thinking/streaming support.")
         return 0
     print(f"Probing {BASE}\n")

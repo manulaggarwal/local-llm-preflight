@@ -1,8 +1,8 @@
 # llm-preflight.toml — copy, edit, place next to your script or in ~/.config/
 
 [server]
-base_url = "http://127.0.0.1:8010/v1"   # omlx default; FreeToken often :8000
-model = ""                               # set to your served model id
+base_url = "http://127.0.0.1:8000/v1"   # Ollama/llama.cpp/FreeToken/vLLM default; omlx: set explicitly
+model = "your-served-model-id"          # exact id from your server's /v1/models
 
 [budgets]
 max_input_chars = 96000                  # ~24k tokens — keep prefill sane

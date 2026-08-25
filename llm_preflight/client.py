@@ -65,7 +65,7 @@ class ClientConfig:
 
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1:8010/v1",
+        base_url: str = "http://127.0.0.1:8000/v1",
         model: str = "",
         timeout_s: int = 600,
         max_input_chars: int = 96_000,        # ~24k tokens
@@ -195,9 +195,24 @@ class PreflightClient:
                 self._warm = True  # model is resident now
                 return text, usage
             except urllib.error.HTTPError as e:
-                # 4xx = our request is wrong (bad model name, rejected field);
-                # retrying the identical body is pointless.
-                raise LocalModelUnavailable(f"HTTP {e.code}: {e.reason}") from e
+                if 400 <= e.code < 500:
+                    # 4xx = our request is wrong (bad model name, rejected
+                    # field); retrying the identical body is pointless.
+                    raise LocalModelUnavailable(f"HTTP {e.code}: {e.reason}") from e
+                # 5xx = transient server-side condition (model loading,
+                # queue full, proxy hiccup) — same starvation-aware retry
+                # policy as connection/timeout failures.
+                wall = time.time() - t0
+                last_err = e
+                if wall > cfg.slow_death_s:
+                    raise LocalModelUnavailable(
+                        f"died after {wall:.0f}s (> {cfg.slow_death_s}s — "
+                        f"HTTP {e.code}; treat as starvation, not retried)"
+                    ) from e
+                if attempt < cfg.retries:
+                    time.sleep(2)
+                    continue
+                raise LocalModelUnavailable(f"HTTP {e.code} after retries: {e.reason}") from e
             except Exception as e:  # URLError, timeout, JSON decode
                 wall = time.time() - t0
                 last_err = e

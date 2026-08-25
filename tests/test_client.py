@@ -133,10 +133,6 @@ class TestRetryPolicy:
                 raise urllib.error.URLError("connection refused")
             return 200, {"choices": [{"message": {"content": "recovered"}}]}
 
-        # URLError in handler -> 500; simulate fast failure differently
-        class Boom(Exception):
-            pass
-
         monkeypatch.setattr(
             "llm_preflight.client.urllib.request.urlopen",
             _flaky_urlopen(flaky, url),
@@ -157,18 +153,23 @@ class TestRetryPolicy:
             time.sleep(0.3)
             raise SlowDeath("starved")
 
+        import llm_preflight.client as _C
+        _real_time = _C.time
         monkeypatch.setattr(
             "llm_preflight.client.urllib.request.urlopen",
             _flaky_urlopen(slow, url, wall_scale=1000),  # scale 0.3s -> reported 300s
         )
-        client = PreflightClient(cfg_for(url, retries=3, slow_death_s=90))
-        # Pre-set warmth so preflight does not add a health-probe call
-        client._warm = True
-        with pytest.raises(LocalModelUnavailable) as ei:
-            client.chat(system="s", user="hi")
-        assert "starvation" in str(ei.value)
-        # exactly one CHAT attempt — no retries despite retries=3
-        assert slow.calls == 1
+        try:
+            client = PreflightClient(cfg_for(url, retries=3, slow_death_s=90))
+            # Pre-set warmth so preflight does not add a health-probe call
+            client._warm = True
+            with pytest.raises(LocalModelUnavailable) as ei:
+                client.chat(system="s", user="hi")
+            assert "starvation" in str(ei.value)
+            # exactly one CHAT attempt — no retries despite retries=3
+            assert slow.calls == 1
+        finally:
+            _C.time = _real_time  # never leak FakeTime into later tests
 
     def test_http_4xx_not_retried(self, fake_server):
         fake, url = fake_server
@@ -239,15 +240,14 @@ def _flaky_urlopen(handler, base_url, wall_scale=1):
         def time(self):
             return orig_time() * wall_scale
 
+        def sleep(self, seconds):
+            time.sleep(0)  # no real waiting in tests
+
+    _real_time = C.time
     if wall_scale != 1:
         C.time = FakeTime()
     handler.calls = getattr(handler, "calls", 0) + 0
 
-    def counting(body):
-        handler.calls = getattr(handler, "calls", 0) + 1
-        return handler(body)
-
-    # rebind so counting is used
     def urlopen_counted(req, timeout=None):
         handler.calls = getattr(handler, "calls", 0) + 1
         body = json.loads(req.data)
@@ -260,3 +260,46 @@ def _flaky_urlopen(handler, base_url, wall_scale=1):
         raise result
 
     return urlopen_counted
+
+
+class Test5xxRetryPolicy:
+    def test_503_is_retried_then_recovers(self, fake_server):
+        fake, url = fake_server
+        state = {"n": 0}
+
+        def flaky_503(body):
+            state["n"] += 1
+            if state["n"] == 1:
+                return 503, {"error": "model loading"}
+            return 200, {"choices": [{"message": {"content": "recovered"}}]}
+
+        fake.respond["/chat/completions"] = flaky_503
+        client = PreflightClient(cfg_for(url, retries=1))
+        client._warm = True
+        text, usage = client.chat(system="s", user="hi")
+        assert text == "recovered"
+        assert state["n"] == 2  # first 503 + successful retry
+
+    def test_404_never_retried(self, fake_server):
+        fake, url = fake_server
+        calls = {"n": 0}
+
+        def not_found(body):
+            calls["n"] += 1
+            return 404, {"error": "model not found"}
+
+        fake.respond["/chat/completions"] = not_found
+        client = PreflightClient(cfg_for(url, retries=5))
+        client._warm = True
+        with pytest.raises(LocalModelUnavailable):
+            client.chat(system="s", user="hi")
+        assert calls["n"] == 1  # 4xx: zero retries despite retries=5
+
+    def test_503_exhausted_retries_raises(self, fake_server):
+        fake, url = fake_server
+        fake.respond["/chat/completions"] = lambda b: (503, {"error": "loading"})
+        client = PreflightClient(cfg_for(url, retries=1))
+        client._warm = True
+        with pytest.raises(LocalModelUnavailable) as ei:
+            client.chat(system="s", user="hi")
+        assert "503" in str(ei.value)

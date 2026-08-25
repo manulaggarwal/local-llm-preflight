@@ -30,8 +30,14 @@ expect_json = true
 
 
 class TestLoadConfig:
-    def test_missing_file_gives_defaults(self, tmp_path):
-        cfg = load_config(tmp_path / "nope.toml")
+    def test_missing_explicit_path_raises(self, tmp_path):
+        import pytest
+        with pytest.raises(FileNotFoundError):
+            load_config(tmp_path / "nope.toml")
+
+    def test_missing_default_search_gives_defaults(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        cfg = load_config()  # no llm-preflight.toml anywhere -> defaults
         assert cfg.base_url.endswith("/v1")
         assert cfg.max_tokens == 1024
 

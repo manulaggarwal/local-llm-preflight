@@ -34,7 +34,7 @@ nvidia = ["nvidia-ml-py"]  # optional VRAM checks on NVIDIA GPUs
 dev = ["pytest>=8"]
 
 [project.urls]
-Homepage = "https://github.com/manulaggarwal/llm-preflight"
+Homepage = "https://github.com/manulaggarwal/local-llm-preflight"
 
 [project.scripts]
 llm-preflight-probe = "llm_preflight.probe:main"

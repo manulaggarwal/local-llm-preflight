@@ -27,6 +27,11 @@ for unattended work.
 from __future__ import annotations
 
 import json
+
+
+class SessionNotFoundError(FileNotFoundError):
+    """Typed failure for Session.resume() — sid not on disk or corrupted."""
+
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -93,7 +98,8 @@ class Session:
         self.state.last_prompt_tokens = usage.get("prompt_tokens", 0) or 0
         if self.state.server_max_context is None:
             self.state.server_max_context = usage.get("server_max_context")
-        if self.state.turns % self.cfg.checkpoint_every == 0:
+        # checkpoint_every=0 disables checkpointing entirely (no modulo)
+        if self.cfg.checkpoint_every and self.state.turns % self.cfg.checkpoint_every == 0:
             self.checkpoint()
         self._maybe_compact_post()
         return text, usage
@@ -182,53 +188,39 @@ class Session:
         session_config: SessionConfig | None = None,
     ) -> "Session":
         sess = cls(client_config, session_config, session_id=session_id)
-        payload = json.loads(sess._ckpt_path.read_text())
-        st = payload["state"]
-        sess.state = SessionState(
-            messages=st["messages"],
-            last_prompt_tokens=st.get("last_prompt_tokens", 0),
-            server_max_context=st.get("server_max_context"),
-            compactions=st.get("compactions", 0),
-            turns=st.get("turns", 0),
-        )
+        if not sess._ckpt_path.exists():
+            raise SessionNotFoundError(
+                f"no checkpoint for session_id={session_id!r} at {sess._ckpt_path}. "
+                f"Pass the id returned by sess.sid after the last checkpoint()."
+            )
+        try:
+            payload = json.loads(sess._ckpt_path.read_text())
+            st = payload["state"]
+            sess.state = SessionState(
+                messages=st["messages"],
+                last_prompt_tokens=st.get("last_prompt_tokens", 0),
+                server_max_context=st.get("server_max_context"),
+                compactions=st.get("compactions", 0),
+                turns=st.get("turns", 0),
+            )
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            raise SessionNotFoundError(
+                f"checkpoint at {sess._ckpt_path} is corrupted "
+                f"({type(e).__name__}: {e}). Delete the file or restore from backup."
+            ) from e
         return sess
 
     # ── internals ─────────────────────────────────────────────────────
 
     def _chat_with_history(self, messages: list[dict]) -> tuple[str, dict]:
-        cfg = self.client.cfg
-        import urllib.request, urllib.error
+        """Send the full conversation through the shared request path.
 
-        self.client.preflight()  # raises MemoryPressureError appropriately
-
-        body = {
-            "model": cfg.model,
-            "messages": messages,
-            "max_tokens": cfg.max_tokens,
-            "temperature": cfg.temperature,
-            "stream": False,
-        }
-        if cfg.thinking_off:
-            body["chat_template_kwargs"] = {"enable_thinking": False}
-        req = urllib.request.Request(
-            f"{cfg.base_url}/chat/completions",
-            data=json.dumps(body).encode(),
-            headers={"Content-Type": "application/json"},
-        )
-        try:
-            t0 = time.time()
-            with urllib.request.urlopen(req, timeout=cfg.timeout_s) as resp:
-                data = json.loads(resp.read())
-            wall = time.time() - t0
-            from .client import strip_think
-
-            text = strip_think(
-                data.get("choices", [{}])[0].get("message", {}).get("content", "") or ""
-            )
-            usage = dict(data.get("usage", {}))
-            usage["wall_s"] = round(wall, 1)
-            return text, usage
-        except Exception as e:
-            from .client import LocalModelUnavailable
-
-            raise LocalModelUnavailable(f"session turn failed: {e}") from e
+        Routing through PreflightClient._do_request means Session gets the
+        same five protections as a single chat() call: preflight check,
+        truncation (Session manages its own compaction, so we disable
+        the input-cap here), thinking-off, starvation-aware retry, and
+        typed failures. Prior to this, Session silently bypassed all of
+        them — users who set ClientConfig(max_input_chars=, slow_death_s=,
+        retries=) expected those values to govern Session turns too.
+        """
+        return self.client._do_request(messages, apply_truncation=False)

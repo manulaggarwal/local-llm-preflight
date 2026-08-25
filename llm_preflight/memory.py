@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import os
 """Cross-platform memory headroom detection for local LLM inference.
 
 The core insight this module implements: a memory check is only valid if it
@@ -17,8 +20,6 @@ measures the pool the model actually allocates from.
 This module never raises on measurement failure — an unreadable metric
 returns ``None`` and callers decide what that means for them.
 """
-
-from __future__ import annotations
 
 import platform
 import subprocess
@@ -52,7 +53,7 @@ class MemorySnapshot:
         return f"[{self.platform}] {s} {v} -> limit={self.limiting_pool}"
 
 
-_PAGE_SIZE_FALLBACK = 16384  # Apple Silicon; overridden where detectable
+_PAGE_SIZE_FALLBACK = (os.sysconf("SC_PAGE_SIZE") if hasattr(os, "sysconf") else 16384)  # portable; vm_stat usually announces the size itself
 
 
 def _run(cmd: list[str]) -> str | None:

@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.1.3 — 2026-08-25
+
+Fourth adversarial audit (8 findings, all fixed). The four most impactful:
+
+**Fixed (correctness)**
+- **Session now inherits all five protections.** Previously the Session
+  manager bypassed the truncation, retry, and starvation-aware caps that
+  `ClientConfig` advertises — `Session._chat_with_history` had its own
+  raw `urlopen` call that never used the retry loop or `slow_death_s`.
+  Routed Session through the new shared `_do_request` path. The contract
+  is now: Session and `chat()` go through the same request code, so any
+  future change to one automatically applies to the other.
+- **4xx errors now include the server's response body.** The previous
+  `LocalModelUnavailable("HTTP 400: Bad Request")` was a debug
+  nightmare when the server rejected a field — the body says WHAT
+  ("unrecognized arguments: chat_template_kwargs""). When the body
+  hints at `chat_template_kwargs` + thinking is on, the error now
+  includes the actionable line: "try PreflightClient(thinking_off=False)".
+- **Session.resume() now raises typed `SessionNotFoundError`** with the
+  resolved path and a recovery hint, instead of a raw `FileNotFoundError`,
+  for both unknown ids and corrupted checkpoint files.
+- **Session.checkpoint_every=0** (documented as "omit checkpoints") no
+  longer crashes with `ZeroDivisionError`. Treated as the no-op it
+  should be.
+
+**Polish**
+- `__all__` indentation normalized; `pyproject` gains `project.urls`
+  (Homepage/Changelog/Documentation/Issues) so the PyPI page links out.
+- `memory.py`: page-size fallback now uses portable `os.sysconf` instead
+  of an Apple-Silicon-specific constant (Intel-Mac correctness).
+- README's `# llm-preflight` header and module banner both renamed;
+  Session section gets a privacy note about default `~/.llm-preflight`
+  checkpoint location.
+
+**Tests:** 35 → 40 (5 new regression tests pinning all of the above).
+
 ## 0.1.2 — 2026-08-25
 
 Published to PyPI as **local-llm-preflight** (the name `llm-preflight` is

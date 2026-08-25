@@ -1,6 +1,6 @@
 """
-llm-preflight
-=============
+local-llm-preflight
+=====================
 
 Fail-safe client discipline for local LLMs on memory-constrained machines.
 
@@ -34,8 +34,9 @@ from .client import (
     PreflightClient,
 )
 from .memory import MemorySnapshot, check, snapshot
+from .session import Session, SessionConfig, SessionNotFoundError
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 __all__ = [
     "ClientConfig",
     "PreflightClient",
@@ -44,5 +45,8 @@ __all__ = [
     "MemorySnapshot",
     "snapshot",
     "check",
+    "Session",
+    "SessionConfig",
+    "SessionNotFoundError",
     "__version__",
 ]

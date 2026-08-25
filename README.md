@@ -1,4 +1,4 @@
-# llm-preflight
+# local-llm-preflight
 
 **Fail-safe client discipline for local LLMs on memory-constrained machines.**
 
@@ -85,6 +85,9 @@ reply, usage = sess.send("Explain this error: ...")
 # Crash? Resume from the last turn-boundary checkpoint:
 sess2 = Session.resume(client_config, session_id=sess.sid, session_config=SessionConfig())
 ```
+
+
+> **Privacy note**: `Session` persists conversations as plaintext JSON to `~/.llm-preflight/sessions/<id>.json` by default — this is how crash-resume works. Set `SessionConfig(checkpoint_dir=Path("/tmp/llm-preflight"))` (or omit checkpoints entirely with `checkpoint_every=0`) if your conversation contents are sensitive.
 
 Checkpoints are the portable seam: we persist the **message list** at turn boundaries and let the server rebuild its own KV cache on resume. We never touch engine-internal KV state — there is no portable API for it, and pretending otherwise couples you to one engine.
 

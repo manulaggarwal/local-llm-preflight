@@ -34,7 +34,7 @@ import urllib.request
 from .memory import check as memory_check
 
 __all__ = [
-        "PreflightClient",
+    "PreflightClient",
     "MemoryPressureError",
     "LocalModelUnavailable",
     "ClientConfig",
@@ -142,20 +142,49 @@ class PreflightClient:
         return {"snapshot": str(snap), "limiting": snap.limiting_pool}
 
     def chat(self, system: str, user: str, **overrides) -> tuple[str, dict]:
-        """Single disciplined call. Returns (text, usage-with-wall)."""
+        """Single disciplined call. Returns (text, usage-with-wall).
+
+        Subject to the same five protections as Session.send():
+        preflight check, truncation, thinking-off, starvation-aware retry,
+        typed failures.
+        """
         cfg = self.cfg
-        # Rule: hard input cap
         if len(user) > cfg.max_input_chars:
             user = user[: cfg.max_input_chars] + "\n[truncated by llm-preflight]"
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
+        return self._do_request(messages, overrides)
+
+    def _do_request(
+        self,
+        messages: list[dict],
+        overrides: dict | None = None,
+        apply_truncation: bool = True,
+    ) -> tuple[str, dict]:
+        """The single-shot request path shared by chat() and Session.
+
+        Truncation, thinking-off, JSON mode, preflight, and the
+        starvation-aware retry loop all live here exactly once, so any
+        caller gets the same five protections.
+        """
+        overrides = overrides or {}
+        cfg = self.cfg
+
+        # Rule: hard input cap (apply to last user message by default —
+        # caller can disable for Session which truncates at compaction time)
+        if apply_truncation and messages and messages[-1].get("role") == "user":
+            last = messages[-1]["content"]
+            if len(last) > cfg.max_input_chars:
+                messages = list(messages)
+                messages[-1] = {**messages[-1], "content": last[: cfg.max_input_chars] + "\n[truncated by llm-preflight]"}
 
         self.preflight()
 
         body = {
             "model": cfg.model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
+            "messages": messages,
             "max_tokens": overrides.get("max_tokens", cfg.max_tokens),
             "temperature": overrides.get("temperature", cfg.temperature),
             "stream": False,
@@ -194,10 +223,19 @@ class PreflightClient:
                 self._warm = True  # model is resident now
                 return text, usage
             except urllib.error.HTTPError as e:
+                # Always read the error body — it's where servers name the
+                # offending field. Silent 400s are debug nightmares.
+                try:
+                    body = e.read().decode("utf-8", errors="replace")[:500]
+                except Exception:
+                    body = ""
                 if 400 <= e.code < 500:
-                    # 4xx = our request is wrong (bad model name, rejected
-                    # field); retrying the identical body is pointless.
-                    raise LocalModelUnavailable(f"HTTP {e.code}: {e.reason}") from e
+                    hint = ""
+                    if cfg.thinking_off and ("chat_template_kwargs" in body or "extra" in body.lower() or "unknown" in body.lower()):
+                        hint = " (server may reject chat_template_kwargs — try PreflightClient(thinking_off=False))"
+                    raise LocalModelUnavailable(
+                        f"HTTP {e.code}: {e.reason}{hint} | body: {body}"
+                    ) from e
                 # 5xx = transient server-side condition (model loading,
                 # queue full, proxy hiccup) — same starvation-aware retry
                 # policy as connection/timeout failures.

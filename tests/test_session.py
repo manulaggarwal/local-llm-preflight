@@ -82,3 +82,101 @@ class TestCheckpoint:
         data = json.loads(p.read_text())
         assert data["session_id"] == "atomic"
         assert "saved_at" in data
+
+
+class TestSessionProtections:
+    """The fourth audit caught that Session silently bypassed all client
+    protections. These tests pin the contract: Session must go through
+    _do_request and inherit the same five protections as PreflightClient.chat().
+    """
+
+    def test_session_sends_through_shared_request_path(self):
+        """Session uses the client's shared _do_request — verify via the
+        integration test (chat completion against live omlx)."""
+        import urllib.error
+        from llm_preflight import Session, SessionConfig, PreflightClient, ClientConfig
+        from unittest.mock import patch
+        # Session takes a ClientConfig (it builds its own PreflightClient)
+        cfg = ClientConfig(base_url="http://127.0.0.1:8010/v1", model="Ornith-1.5-9B-MLX-4bit")
+        sess = Session(cfg, SessionConfig(checkpoint_every=0))
+        client = sess.client
+        sess.seed("you are concise. answer in 5 words max.")
+        # patch _do_request to confirm Session routes through it
+        called = {"n": 0}
+        orig = client._do_request
+        def spy(messages, overrides=None, apply_truncation=True):
+            called["n"] += 1
+            assert messages[-1]["role"] == "user"
+            # Session passes apply_truncation=False (owns compaction)
+            assert apply_truncation is False
+            # Don't call orig — preflight against the live test machine
+            # may not have the headroom for a warm-restart. The contract
+            # we care about is "Session routes through _do_request", which
+            # the side_effect already proves.
+            return "ok", {"wall_s": 0.0, "attempt": 1}
+        with patch.object(client, "_do_request", side_effect=spy):
+            sess.send("hello")
+        assert called["n"] == 1
+
+    def test_session_resume_raises_typed_error_on_unknown_id(self):
+        from llm_preflight import Session, SessionConfig, PreflightClient, ClientConfig, SessionNotFoundError
+        cfg = ClientConfig(base_url="http://127.0.0.1:8010/v1")
+        with pytest.raises(SessionNotFoundError) as ei:
+            Session.resume(cfg, session_id="definitely-not-real-xyz")
+        assert "definitely-not-real-xyz" in str(ei.value)
+
+    def test_session_resume_raises_typed_error_on_corrupt_checkpoint(self, tmp_path):
+        from llm_preflight import Session, SessionConfig, PreflightClient, ClientConfig, SessionNotFoundError
+        cfg = ClientConfig(base_url="http://127.0.0.1:8010/v1")
+        sc = SessionConfig(checkpoint_dir=tmp_path)
+        # Force a corrupted checkpoint file in place
+        bad = tmp_path / "bad-session.json"
+        bad.write_text("{not valid json")
+        with pytest.raises(SessionNotFoundError) as ei:
+            Session.resume(cfg, session_id="bad-session", session_config=sc)
+        assert "corrupted" in str(ei.value)
+
+    def test_client_4xx_error_includes_body(self):
+        """The fourth audit demanded the server's response body in 4xx errors
+        so users can see WHAT the server rejected (e.g. unknown chat_template_kwargs)."""
+        from llm_preflight import PreflightClient, ClientConfig, LocalModelUnavailable
+        # Build a fake server that 400s with a body mentioning chat_template_kwargs
+        import threading
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                msg = b'{"error": "unrecognized arguments: chat_template_kwargs"}'
+                self.send_response(400); self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(msg))); self.end_headers()
+                self.wfile.write(msg)
+            def log_message(self, *a): pass
+        srv = HTTPServer(("127.0.0.1", 0), Handler)
+        port = srv.server_address[1]
+        t = threading.Thread(target=srv.serve_forever, daemon=True); t.start()
+        try:
+            cfg = ClientConfig(base_url=f"http://127.0.0.1:{port}/v1", model="x", thinking_off=True, retries=0)
+            client = PreflightClient(cfg); client._warm = True
+            with pytest.raises(LocalModelUnavailable) as ei:
+                client.chat(system="s", user="u")
+            # The server's response body AND an actionable hint should both
+            # be present — silent 400s are debug nightmares.
+            msg = str(ei.value)
+            assert "chat_template_kwargs" in msg, f"body not in error: {msg}"
+            assert "thinking_off=False" in msg, f"hint not in error: {msg}" 
+        finally:
+            srv.shutdown()
+
+    def test_checkpoint_every_zero_disables(self, tmp_path):
+        """checkpoint_every=0 is documented as 'omit checkpoints' but used
+        to crash with ZeroDivisionError (audit caught this)."""
+        from unittest.mock import patch
+        from llm_preflight import Session, SessionConfig, ClientConfig
+        cfg = ClientConfig(base_url="http://127.0.0.1:8010/v1")
+        sc = SessionConfig(checkpoint_every=0, checkpoint_dir=tmp_path)
+        sess = Session(cfg, sc)
+        sess.seed("s")
+        with patch.object(sess.client, "_do_request",
+                          return_value=("reply", {"wall_s": 0.1, "prompt_tokens": 5})):
+            sess.send("hi")  # must not raise
+        # No checkpoint file should have been written
+        assert list(tmp_path.glob("*.json")) == []

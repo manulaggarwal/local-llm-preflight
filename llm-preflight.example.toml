@@ -1,0 +1,24 @@
+# llm-preflight.toml — copy, edit, place next to your script or in ~/.config/
+
+[server]
+base_url = "http://127.0.0.1:8010/v1"   # omlx default; FreeToken often :8000
+model = ""                               # set to your served model id
+
+[budgets]
+max_input_chars = 96000                  # ~24k tokens — keep prefill sane
+max_tokens = 1024
+temperature = 0.4
+timeout_s = 600
+
+[retry]
+retries = 1
+slow_death_s = 90.0                      # RAISE for interactive long generations
+
+[memory]
+min_system_mb = 2500                     # warm-inference floor
+min_vram_mb = 1500                       # NVIDIA-only (install nvidia-ml-py)
+cold_system_mb = 7000                    # model-not-yet-loaded floor
+
+[behavior]
+thinking_off = true                      # 4-5x token/time saver on reasoning models
+expect_json = false

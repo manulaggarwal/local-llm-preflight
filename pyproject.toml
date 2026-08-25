@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-preflight"
+version = "0.1.0"
+description = "Fail-safe client discipline for local LLMs on memory-constrained machines: preflight memory checks, starvation-aware retries, thinking-mode-off, token budgets."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Manul Aggarwal" }]
+keywords = [
+    "llm", "local-llm", "ollama", "lmstudio", "llama-cpp", "omlx",
+    "memory-pressure", "cron", "unattended", "fail-safe", "apple-silicon",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []  # stdlib only, by design
+
+[project.optional-dependencies]
+nvidia = ["nvidia-ml-py"]  # optional VRAM checks on NVIDIA GPUs
+dev = ["pytest>=8"]
+
+[project.urls]
+Homepage = "https://github.com/manulaggarwal/llm-preflight"
+
+[project.scripts]
+llm-preflight-probe = "llm_preflight.probe:main"
+
+[tool.setuptools.packages.find]
+include = ["llm_preflight*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

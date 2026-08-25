@@ -38,6 +38,12 @@ def chat(body, timeout=300):
 
 
 def main():
+    import sys as _sys
+    if any(a in _sys.argv for a in ("--help", "-h")):
+        print("Usage: llm-preflight-probe [BASE_URL] [MODEL]")
+        print("Default base: http://127.0.0.1:8010/v1")
+        print("Probes an OpenAI-compatible local server for usage/thinking/streaming support.")
+        return 0
     print(f"Probing {BASE}\n")
 
     # 0. Model list + advertised context
